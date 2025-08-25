@@ -18,6 +18,7 @@ const Navbar = () => {
           
           <div className="flex items-center space-x-6">
             <Link to="/" className="text-gray-300 hover:text-cyan-400 transition-colors">Home</Link>
+            <Link to="/compliance" className="text-gray-300 hover:text-cyan-400 transition-colors">Compliance</Link>
             <Link to="/about" className="text-gray-300 hover:text-cyan-400 transition-colors">About</Link>
             <Link to="/contact" className="text-gray-300 hover:text-cyan-400 transition-colors">Contact</Link>
           </div>

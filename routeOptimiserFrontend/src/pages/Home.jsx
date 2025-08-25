@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -36,6 +37,101 @@ const Home = () => {
   const [routes, setRoutes] = useState([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [routeStops, setRouteStops] = useState([]);
+  const [selectedRouteRank, setSelectedRouteRank] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const restoredRef = useRef(false);
+
+  // Restore state from sessionStorage on mount
+  // Also restore if navigation state provides a fresh snapshot
+  useEffect(() => {
+    const navState = location.state && (location.state.homeState || location.state.prefill)
+      ? (location.state.homeState || { prefill: location.state.prefill })
+      : null;
+    try {
+      const saved = navState || sessionStorage.getItem("homeState");
+      const parsed = typeof saved === 'string' ? JSON.parse(saved) : saved;
+      if (parsed) {
+        if (parsed.formData) setFormData(prev => ({ ...prev, ...parsed.formData }));
+        if (parsed.initialAddress) setInitialAddress(parsed.initialAddress);
+        if (parsed.finalAddress) setFinalAddress(parsed.finalAddress);
+        if (parsed.initialCountry) setInitialCountry(parsed.initialCountry);
+        if (parsed.finalCountry) setFinalCountry(parsed.finalCountry);
+        if (Array.isArray(parsed.routes)) setRoutes(parsed.routes);
+        if (Array.isArray(parsed.routeStops)) setRouteStops(parsed.routeStops);
+        if (typeof parsed.hasSubmitted === "boolean") {
+          setHasSubmitted(parsed.hasSubmitted);
+        } else if (Array.isArray(parsed.routes) && parsed.routes.length > 0) {
+          setHasSubmitted(true);
+        }
+        // Accept prefill from compliance (weight/volume)
+        if (parsed.prefill) {
+          setFormData(prev => ({ ...prev, weight: parsed.prefill.weight ?? prev.weight, volume: parsed.prefill.volume ?? prev.volume }));
+        }
+      }
+      restoredRef.current = true;
+    } catch (e) {
+      console.warn("Failed to restore state:", e);
+    }
+  }, [location.state]);
+
+  // Persist essential state to sessionStorage
+  useEffect(() => {
+    try {
+      if (!restoredRef.current) return; // wait until initial restore happens
+      const snapshot = {
+        formData,
+        initialAddress,
+        finalAddress,
+        initialCountry,
+        finalCountry,
+        routes,
+        hasSubmitted,
+        routeStops,
+        selectedRouteRank,
+      };
+      sessionStorage.setItem("homeState", JSON.stringify(snapshot));
+    } catch (e) {
+      console.warn("Failed to persist state:", e);
+    }
+  }, [formData, initialAddress, finalAddress, initialCountry, finalCountry, routes, hasSubmitted, routeStops, selectedRouteRank]);
+
+  // Fallback: if /plan was opened without full state, merge from complianceState
+  useEffect(() => {
+    if (!restoredRef.current) return;
+    const needCoords = !formData.startLat || !formData.startLon || !formData.endLat || !formData.endLon;
+    const needTotals = !formData.weight || !formData.volume;
+    const needAddrs = !initialAddress || !finalAddress;
+    if (!(needCoords || needTotals || needAddrs)) return;
+    try {
+      const saved = sessionStorage.getItem('complianceState');
+      if (!saved) return;
+      const c = JSON.parse(saved);
+      // Merge addresses and countries
+      if (needAddrs) {
+        if (c.startAddress) setInitialAddress(c.startAddress);
+        if (c.endAddress) setFinalAddress(c.endAddress);
+      }
+      if (!initialCountry && c.sourceCountry) setInitialCountry(c.sourceCountry);
+      if (!finalCountry && c.destinationCountry) setFinalCountry(c.destinationCountry);
+      // Merge coordinates
+      if (needCoords) {
+        setFormData(prev => ({
+          ...prev,
+          startLat: prev.startLat || c.startLat || prev.startLat,
+          startLon: prev.startLon || c.startLon || prev.startLon,
+          endLat: prev.endLat || c.endLat || prev.endLat,
+          endLon: prev.endLon || c.endLon || prev.endLon,
+        }));
+      }
+      // Merge totals
+      if (needTotals && Array.isArray(c.products)) {
+        const w = c.products.reduce((s,p)=>s + (Number(p.weightKg)||0), 0);
+        const v = c.products.reduce((s,p)=>s + (Number(p.volumeM3)||0), 0);
+        setFormData(prev => ({ ...prev, weight: prev.weight || w, volume: prev.volume || v }));
+      }
+    } catch {}
+  }, [restoredRef.current, formData.startLat, formData.startLon, formData.endLat, formData.endLon, formData.weight, formData.volume, initialAddress, finalAddress, initialCountry, finalCountry]);
 
   // ### Address Geocoding Functions
 
@@ -103,7 +199,8 @@ const Home = () => {
 
   // ### Form Submission Logic
 
-  const sumOfWeights = Object.values(formData.customWeights).reduce(
+  const weightsObj = formData.customWeights || { time: 0.25, cost: 0.25, emissions: 0.25, logisticsScore: 0.25 };
+  const sumOfWeights = Object.values(weightsObj).reduce(
     (acc, val) => acc + val,
     0
   );
@@ -504,6 +601,26 @@ const Home = () => {
                       <p className="text-lg font-medium text-cyan-400">
                         Time: {route.time_days} days
                       </p>
+                      <div className="mt-2 flex items-center gap-3 justify-end">
+                        <button
+                          onClick={() => {
+                            const homeState = {
+                              formData,
+                              initialAddress,
+                              finalAddress,
+                              initialCountry,
+                              finalCountry,
+                              routes,
+                              hasSubmitted,
+                              routeStops,
+                            };
+                            navigate(`/route/${route.rank}`, { state: { route, homeState } });
+                          }}
+                          className="neon-button px-3 py-1 rounded-md"
+                        >
+                          View details
+                        </button>
+                      </div>
                     </div>
                   </div>
 

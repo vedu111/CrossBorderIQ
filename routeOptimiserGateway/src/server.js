@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import routes from './routes/routes.js';
+import compliance from './routes/compliance.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -22,6 +23,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api', routes);
+app.use('/api', compliance);
 
 app.use(errorHandler);
 
