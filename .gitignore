@@ -2,7 +2,7 @@
 routeOptimiserBackend/venv/
 routeOptimiserBackend/__pycache__/
 routeOptimiserBackend/*.pyc
-
+routeOptimiserBackend/.env
 # Frontend ignores
 routeOptimiserFrontend/node_modules/
 routeOptimiserFrontend/.env

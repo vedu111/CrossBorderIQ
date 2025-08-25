@@ -10,6 +10,7 @@ import re
 from googlemaps import Client
 from googlemaps.exceptions import ApiError
 from src.utils.geocoding import GeocodingUtils
+from dotenv import load_dotenv
 
 # Create logs directory if it doesn't exist
 os.makedirs("logs", exist_ok=True)
@@ -40,12 +41,22 @@ class GraphBuilder:
         self.processed_dir = config["data"]["processed_dir"]
         self.cache_dir = config["data"]["cache_dir"]
         
+        # Load API key from environment first, fallback to file if not set
+        load_dotenv()
+        api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+        if not api_key:
+            try:
+                with open(os.path.join(config["data"]["external_dir"], config["api"]["google_routes_key_file"]), "r") as f:
+                    api_key = f.read().strip()
+            except Exception as e:
+                api_key = None
+                logger.warning(f"Google Maps API key not found in env or file: {e}")
         try:
-            with open(os.path.join(config["data"]["external_dir"], config["api"]["google_routes_key_file"]), "r") as f:
-                self.gmaps = Client(key=f.read().strip())
-            logger.info("Google Maps API key loaded successfully.")
+            self.gmaps = Client(key=api_key) if api_key else None
+            if self.gmaps:
+                logger.info("Google Maps API key loaded successfully.")
         except Exception as e:
-            logger.warning(f"Failed to load Google Maps API key: {e}. Using fallback methods.")
+            logger.warning(f"Failed to initialize Google Maps client: {e}. Using fallback methods.")
             self.gmaps = None
         
         self.G = nx.MultiDiGraph()

@@ -8,7 +8,10 @@ from src.utils.helpers import load_config
 import logging
 import pandas as pd
 from pathlib import Path
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
