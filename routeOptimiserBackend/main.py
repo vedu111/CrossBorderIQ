@@ -76,7 +76,7 @@ def find_routes():
         moa = MOAStar(G)
         constructor = RouteConstructor(G, config)
         logger.info("Loading trade neighbors CSV...")
-        trade_df = pd.read_csv(Path(__file__).parent / "data" / "raw" / "edges" / "trade_neighbour.csv")
+        trade_df = pd.read_csv(Path(__file__).parent / "data" / "raw" / "edges" / "trade_neighbour.csv", encoding="utf-8")
         logger.info("Trade neighbors CSV loaded successfully.")
 
         # Get neighboring countries with safety checks

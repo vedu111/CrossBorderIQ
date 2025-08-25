@@ -11,16 +11,23 @@ from googlemaps import Client
 from googlemaps.exceptions import ApiError
 from src.utils.geocoding import GeocodingUtils
 
+# Create logs directory if it doesn't exist
+os.makedirs("logs", exist_ok=True)
+
 # Set up logging
 try:
-    with open("config/logging_config.yaml", "r") as f:
+    with open("config/logging_config.yaml", "r", encoding="utf-8") as f:
         config = yaml.safe_load(f.read())
     # Delete existing log file(s) if defined in the configuration
     for handler in config.get("handlers", {}).values():
         if "filename" in handler:
             log_file = handler["filename"]
             if os.path.exists(log_file):
-                os.remove(log_file)
+                try:
+                    os.remove(log_file)
+                except PermissionError:
+                    # Log file is in use, skip deletion
+                    pass
     logging.config.dictConfig(config)
 except FileNotFoundError:
     logging.basicConfig(level=logging.INFO)
@@ -85,17 +92,17 @@ class GraphBuilder:
     def load_data(self):
         try:
             nodes = {
-                "seaports": pd.read_csv(os.path.join(self.raw_nodes_dir, "seaports.csv")),
-                "airports": pd.read_csv(os.path.join(self.raw_nodes_dir, "airports.csv"))
+                "seaports": pd.read_csv(os.path.join(self.raw_nodes_dir, "seaports.csv"), encoding="utf-8"),
+                "airports": pd.read_csv(os.path.join(self.raw_nodes_dir, "airports.csv"), encoding="utf-8")
             }
             edges = {
-                "ships": pd.read_csv(os.path.join(self.raw_edges_dir, "ships.csv")),
-                "flights": pd.read_csv(os.path.join(self.raw_edges_dir, "flights.csv")),
-                "seaport_airport_connect": pd.read_csv(os.path.join(self.raw_edges_dir, "seaport_airport_connect.csv")),
-                "trade": pd.read_csv(os.path.join(self.raw_edges_dir, "trade.csv")),
-                "logistics": pd.read_csv(os.path.join(self.raw_edges_dir, "logistics.csv")),
-                "carbon_emission": pd.read_csv(os.path.join(self.raw_edges_dir, "carbon_emission.csv")),
-                "trade_neighbour": pd.read_csv(os.path.join(self.raw_edges_dir, "trade_neighbour.csv"))
+                "ships": pd.read_csv(os.path.join(self.raw_edges_dir, "ships.csv"), encoding="utf-8"),
+                "flights": pd.read_csv(os.path.join(self.raw_edges_dir, "flights.csv"), encoding="utf-8"),
+                "seaport_airport_connect": pd.read_csv(os.path.join(self.raw_edges_dir, "seaport_airport_connect.csv"), encoding="utf-8"),
+                "trade": pd.read_csv(os.path.join(self.raw_edges_dir, "trade.csv"), encoding="utf-8"),
+                "logistics": pd.read_csv(os.path.join(self.raw_edges_dir, "logistics.csv"), encoding="utf-8"),
+                "carbon_emission": pd.read_csv(os.path.join(self.raw_edges_dir, "carbon_emission.csv"), encoding="utf-8"),
+                "trade_neighbour": pd.read_csv(os.path.join(self.raw_edges_dir, "trade_neighbour.csv"), encoding="utf-8")
             }
             logger.debug(f"ships.csv columns: {edges['ships'].columns.tolist()}")
             logger.debug(f"flights.csv columns: {edges['flights'].columns.tolist()}")

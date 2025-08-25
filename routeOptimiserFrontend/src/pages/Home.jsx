@@ -7,6 +7,10 @@ const googleApiKey =
     ? process.env.REACT_APP_GOOGLE_API_KEY
     : import.meta.env.VITE_GOOGLE_API_KEY;
 
+// Debug: Log the API key status
+console.log("Google API Key loaded:", !!googleApiKey);
+console.log("API Key value:", googleApiKey ? googleApiKey.substring(0, 10) + "..." : "Not found");
+
 const Home = () => {
   const [formData, setFormData] = useState({
     startLat: "",
@@ -109,6 +113,8 @@ const Home = () => {
     e.preventDefault();
     setHasSubmitted(true);
 
+    const apiBase = (import.meta?.env?.VITE_API_BASE) || "http://localhost:3000";
+
     const dataToSend = {
       startLat: formData.startLat,
       startLon: formData.startLon,
@@ -124,7 +130,7 @@ const Home = () => {
     };
 
     try {
-      const response = await fetch("http://localhost:5001/api/find-routes", {
+      const response = await fetch(`${apiBase}/api/find-routes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataToSend),

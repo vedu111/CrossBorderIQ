@@ -28,7 +28,7 @@ loggers:
     handlers: [console, file]
   validators:
     level: DEBUG
-    handlers: [console, file]  # Corrected from 'console脏污 file'
+    handlers: [console, file]
 root:
   level: INFO
   handlers: [console]
