@@ -14,11 +14,13 @@
     "@tailwindcss/vite": "^4.0.7",
     "axios": "^1.8.2",
     "leaflet": "^1.9.4",
+    "lucide-react": "^0.541.0",
     "opencage-api-client": "^1.0.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.2.0",
+    "react-to-print": "^3.1.1",
     "tailwindcss": "^4.0.7"
   },
   "devDependencies": {

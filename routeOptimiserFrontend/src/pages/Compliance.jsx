@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { MapPin, Package, CheckCircle, XCircle, Plus, Trash2, Globe, Weight, Box, ArrowRight, AlertCircle, FileText } from "lucide-react";
 
-const emptyProduct = { name: "", hsCode: "", weightKg: 0, volumeM3: 0 };
+const emptyProduct = { name: "", hsCode: "", weightKg: "", volumeM3: "" };
 
 const Compliance = () => {
   const navigate = useNavigate();
@@ -27,7 +28,6 @@ const Compliance = () => {
   }, [products]);
 
   useEffect(() => {
-    // try restore last session
     try {
       const saved = sessionStorage.getItem("complianceState");
       if (saved) {
@@ -85,6 +85,7 @@ const Compliance = () => {
     setProducts(prev => prev.map((p, i) => (i === idx ? { ...p, [key]: key === 'name' || key === 'hsCode' ? value : Number(value) } : p)));
     setItemsResult([]); // invalidate previous results on edit
   };
+ 
 
   const addProduct = () => setProducts(prev => [...prev, { ...emptyProduct }]);
   const removeProduct = (idx) => setProducts(prev => prev.filter((_, i) => i !== idx));
@@ -94,7 +95,6 @@ const Compliance = () => {
     setError("");
     setItemsResult([]);
     try {
-      // Ensure geocoded countries available
       if (!sourceCountry || !destinationCountry) {
         await handleGeocodeStart();
         await handleGeocodeEnd();
@@ -119,7 +119,6 @@ const Compliance = () => {
       if (data.status !== 'success') throw new Error(data.message || 'Compliance failed');
       setItemsResult(data.items || []);
       setNotes({ exportNotes: data.exportNotes || [], importNotes: data.importNotes || [] });
-      // apply suggested hsCode back into editor if provided
       if (Array.isArray(data.items)) {
         setProducts(prev => prev.map((p, i) => ({ ...p, hsCode: (data.items[i] && data.items[i].hsCode) ? data.items[i].hsCode : p.hsCode })));
       }
@@ -131,7 +130,6 @@ const Compliance = () => {
   };
 
   const goToPlanning = () => {
-    // pass totals to Home and persist
     const homeState = {
       homeState: {
         prefill: { weight: totals.weight, volume: totals.volume },
@@ -156,109 +154,285 @@ const Compliance = () => {
   const canRun = startAddress && endAddress && products.every(p => p.name && p.weightKg >= 0 && p.volumeM3 >= 0);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-      <h2 className="text-3xl font-bold">Compliance Check</h2>
-
-      <div className="neon-card p-4 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Start Address</label>
-          <div className="flex gap-2">
-            <input className="neon-input w-full" value={startAddress} onChange={(e) => setStartAddress(e.target.value)} placeholder="Enter start address" />
-            <button onClick={handleGeocodeStart} type="button" className="neon-button px-3 py-2 rounded-md">Set</button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Address Section */}
+        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-2xl shadow-2xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-cyan-500/20 p-2 rounded-lg">
+              <MapPin className="w-6 h-6 text-cyan-400" />
+            </div>
+            <h3 className="text-2xl font-bold text-white">Route Information</h3>
           </div>
-          {startLat && startLon && (
-            <div className="text-xs text-gray-400 mt-1">{sourceCountry} · {startLat.toFixed(4)}, {startLon.toFixed(4)}</div>
-          )}
-        </div>
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">End Address</label>
-          <div className="flex gap-2">
-            <input className="neon-input w-full" value={endAddress} onChange={(e) => setEndAddress(e.target.value)} placeholder="Enter destination address" />
-            <button onClick={handleGeocodeEnd} type="button" className="neon-button px-3 py-2 rounded-md">Set</button>
-          </div>
-          {endLat && endLon && (
-            <div className="text-xs text-gray-400 mt-1">{destinationCountry} · {endLat.toFixed(4)}, {endLon.toFixed(4)}</div>
-          )}
-        </div>
-      </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-gray-300 mb-2">Start Address</label>
+              <div className="flex space-x-4">
+                <div className="relative flex-1">
+                  <input 
+                    className="w-full p-4 bg-slate-700/50 border border-slate-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white placeholder-gray-400 transition-all duration-300" 
+                    value={startAddress} 
+                    onChange={(e) => setStartAddress(e.target.value)} 
+                    placeholder="Enter start address" 
+                  />
+                </div>
+                <button 
+                  onClick={handleGeocodeStart} 
+                  type="button" 
+                  className="px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-xl font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+                >
+                  <Globe className="w-5 h-5" />
+                </button>
+              </div>
+              {startLat && startLon && (
+                <div className="flex items-center gap-2 text-sm text-green-400 bg-green-400/10 p-3 rounded-lg border border-green-400/20">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>{sourceCountry} · {startLat.toFixed(4)}, {startLon.toFixed(4)}</span>
+                </div>
+              )}
+            </div>
 
-      <div className="neon-card p-4 rounded-lg">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xl font-bold">Products</h3>
-          <button onClick={addProduct} className="neon-button px-3 py-1 rounded-md">Add product</button>
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-gray-300 mb-2">End Address</label>
+              <div className="flex space-x-4">
+                <div className="relative flex-1">
+                  <input 
+                    className="w-full p-4 bg-slate-700/50 border border-slate-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white placeholder-gray-400 transition-all duration-300" 
+                    value={endAddress} 
+                    onChange={(e) => setEndAddress(e.target.value)} 
+                    placeholder="Enter destination address" 
+                  />
+                </div>
+                <button 
+                  onClick={handleGeocodeEnd} 
+                  type="button" 
+                  className="px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-xl font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+                >
+                  <Globe className="w-5 h-5" />
+                </button>
+              </div>
+              {endLat && endLon && (
+                <div className="flex items-center gap-2 text-sm text-green-400 bg-green-400/10 p-3 rounded-lg border border-green-400/20">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>{destinationCountry} · {endLat.toFixed(4)}, {endLon.toFixed(4)}</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="space-y-3">
-          {products.map((p, idx) => (
-            <div key={idx} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-              <div className="md:col-span-2">
-                <label className="block text-sm text-gray-300 mb-1">Name</label>
-                <input className="neon-input w-full" value={p.name} onChange={(e) => updateProduct(idx, 'name', e.target.value)} placeholder="Lithium batteries" />
+
+        {/* Products Section */}
+        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-2xl shadow-2xl">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="bg-pink-500/20 p-2 rounded-lg">
+                <Package className="w-6 h-6 text-pink-400" />
               </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">HS Code (optional)</label>
-                <input className="neon-input w-full" value={p.hsCode} onChange={(e) => updateProduct(idx, 'hsCode', e.target.value)} placeholder="850650" />
+              <h3 className="text-2xl font-bold text-white">Products</h3>
+            </div>
+            <button 
+              onClick={addProduct} 
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+            >
+              <Plus className="w-5 h-5" />
+              Add Product
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {products.map((p, idx) => (
+              <div key={idx} className="bg-slate-700/30 border border-slate-600/30 p-6 rounded-xl space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-6 gap-6 items-end">
+                  <div className="lg:col-span-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Product Name</label>
+                    <input 
+                      className="w-full p-3 bg-slate-600/50 border border-slate-500/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white placeholder-gray-400 transition-all duration-300" 
+                      value={p.name} 
+                      onChange={(e) => updateProduct(idx, 'name', e.target.value)} 
+                      placeholder="e.g., Lithium batteries" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">HS Code <span className="text-gray-500">(optional)</span></label>
+                    <input 
+                      className="w-full p-3 bg-slate-600/50 border border-slate-500/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white placeholder-gray-400 transition-all duration-300" 
+                      value={p.hsCode} 
+                      onChange={(e) => updateProduct(idx, 'hsCode', e.target.value)} 
+                      placeholder="850650" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                      <Weight className="w-4 h-4" />
+                      Weight (kg)
+                    </label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      step="0.01" 
+                      className="w-full p-3 bg-slate-600/50 border border-slate-500/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white placeholder-gray-400 transition-all duration-300" 
+                      value={p.weightKg} 
+                      onChange={(e) => updateProduct(idx, 'weightKg', e.target.value)} 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                      <Box className="w-4 h-4" />
+                      Volume (m³)
+                    </label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      step="0.001" 
+                      className="w-full p-3 bg-slate-600/50 border border-slate-500/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white placeholder-gray-400 transition-all duration-300" 
+                      value={p.volumeM3} 
+                      onChange={(e) => updateProduct(idx, 'volumeM3', e.target.value)} 
+                    />
+                  </div>
+                  <div className="flex justify-center">
+                    <button 
+                      onClick={() => removeProduct(idx)} 
+                      className="flex items-center gap-2 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/50 rounded-lg font-medium transition-all duration-300"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Remove
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Weight (kg)</label>
-                <input type="number" min="0" step="0.01" className="neon-input w-full" value={p.weightKg} onChange={(e) => updateProduct(idx, 'weightKg', e.target.value)} />
+            ))}
+          </div>
+
+          <div className="mt-8 flex flex-col md:flex-row items-center gap-6">
+            <button 
+              disabled={!canRun || loading} 
+              onClick={runCompliance} 
+              className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Checking Compliance...
+                </>
+              ) : (
+                <>
+                  <FileText className="w-5 h-5" />
+                  Run Compliance Check
+                </>
+              )}
+            </button>
+            
+            <div className="flex items-center gap-4 px-6 py-3 bg-slate-700/50 rounded-xl border border-slate-600/30">
+              <div className="flex items-center gap-2 text-cyan-400">
+                <Weight className="w-5 h-5" />
+                <span className="font-medium">{totals.weight.toFixed(2)} kg</span>
               </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Volume (m³)</label>
-                <input type="number" min="0" step="0.001" className="neon-input w-full" value={p.volumeM3} onChange={(e) => updateProduct(idx, 'volumeM3', e.target.value)} />
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => removeProduct(idx)} className="px-3 py-2 rounded-md bg-gray-800 text-gray-300">Remove</button>
+              <div className="w-px h-6 bg-slate-600"></div>
+              <div className="flex items-center gap-2 text-pink-400">
+                <Box className="w-5 h-5" />
+                <span className="font-medium">{totals.volume.toFixed(3)} m³</span>
               </div>
             </div>
-          ))}
-        </div>
-        <div className="mt-4 flex items-center gap-4">
-          <button disabled={!canRun || loading} onClick={runCompliance} className="neon-button px-4 py-2 rounded-md disabled:opacity-50">{loading ? 'Checking…' : 'Run compliance check'}</button>
-          <div className="text-sm text-gray-300">Totals: {totals.weight.toFixed(2)} kg, {totals.volume.toFixed(3)} m³</div>
-        </div>
-        {error && <div className="mt-3 text-red-400 text-sm">{error}</div>}
-      </div>
-
-      {itemsResult.length > 0 && (
-        <div className="neon-card p-4 rounded-lg space-y-3">
-          <h3 className="text-xl font-bold">Results</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm text-gray-300">
-              <thead>
-                <tr className="text-left border-b border-gray-700">
-                  <th className="py-2 pr-4">Product</th>
-                  <th className="py-2 pr-4">HS Code</th>
-                  <th className="py-2 pr-4">Accepted</th>
-                  <th className="py-2">Reasons</th>
-                </tr>
-              </thead>
-              <tbody>
-                {itemsResult.map((it, i) => (
-                  <tr key={i} className="border-b border-gray-800">
-                    <td className="py-2 pr-4">{it.name}</td>
-                    <td className="py-2 pr-4">{it.hsCode || '-'}</td>
-                    <td className="py-2 pr-4">{it.accepted ? <span className="text-green-400">Accepted</span> : <span className="text-red-400">Rejected</span>}</td>
-                    <td className="py-2">{(it.reasons || []).join('; ') || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
-          {(notes.exportNotes.length > 0 || notes.importNotes.length > 0) && (
-            <div className="text-sm text-gray-400 space-y-1">
-              {notes.exportNotes.length > 0 && <div>Export: {notes.exportNotes.join('; ')}</div>}
-              {notes.importNotes.length > 0 && <div>Import: {notes.importNotes.join('; ')}</div>}
+
+          {error && (
+            <div className="mt-6 flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
-          <div className="pt-2 flex justify-end">
-            <button disabled={!allAccepted} onClick={goToPlanning} className="neon-button px-4 py-2 rounded-md disabled:opacity-50">Proceed</button>
-          </div>
         </div>
-      )}
+
+        {/* Results Section */}
+        {itemsResult.length > 0 && (
+          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-2xl shadow-2xl">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="bg-green-500/20 p-2 rounded-lg">
+                <FileText className="w-6 h-6 text-green-400" />
+              </div>
+              <h3 className="text-2xl font-bold text-white">Compliance Results</h3>
+            </div>
+
+            <div className="overflow-x-auto">
+              <div className="min-w-full bg-slate-700/30 rounded-xl border border-slate-600/30 overflow-hidden">
+                <div className="bg-slate-600/50 px-6 py-4 border-b border-slate-500/50">
+                  <div className="grid grid-cols-4 gap-4 text-sm font-medium text-gray-300">
+                    <div>Product</div>
+                    <div>HS Code</div>
+                    <div>Status</div>
+                    <div>Details</div>
+                  </div>
+                </div>
+                <div className="divide-y divide-slate-600/30">
+                  {itemsResult.map((it, i) => (
+                    <div key={i} className="px-6 py-4 hover:bg-slate-600/20 transition-colors">
+                      <div className="grid grid-cols-4 gap-4 items-center">
+                        <div className="text-white font-medium">{it.name}</div>
+                        <div className="text-gray-300 font-mono text-sm">{it.hsCode || '-'}</div>
+                        <div>
+                          {it.accepted ? (
+                            <span className="flex items-center gap-2 text-green-400 bg-green-400/10 px-3 py-1 rounded-lg border border-green-400/20 text-sm font-medium">
+                              <CheckCircle className="w-4 h-4" />
+                              Accepted
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-2 text-red-400 bg-red-400/10 px-3 py-1 rounded-lg border border-red-400/20 text-sm font-medium">
+                              <XCircle className="w-4 h-4" />
+                              Rejected
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-gray-300 text-sm">{(it.reasons || []).join('; ') || '-'}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {(notes.exportNotes.length > 0 || notes.importNotes.length > 0) && (
+              <div className="mt-6 space-y-3">
+                {notes.exportNotes.length > 0 && (
+                  <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                    <div className="bg-blue-500/20 p-1 rounded">
+                      <ArrowRight className="w-4 h-4 text-blue-400" />
+                    </div>
+                    <div>
+                      <div className="text-blue-400 font-medium text-sm mb-1">Export Notes</div>
+                      <div className="text-gray-300 text-sm">{notes.exportNotes.join('; ')}</div>
+                    </div>
+                  </div>
+                )}
+                {notes.importNotes.length > 0 && (
+                  <div className="flex items-start gap-3 p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+                    <div className="bg-purple-500/20 p-1 rounded">
+                      <ArrowRight className="w-4 h-4 text-purple-400 rotate-180" />
+                    </div>
+                    <div>
+                      <div className="text-purple-400 font-medium text-sm mb-1">Import Notes</div>
+                      <div className="text-gray-300 text-sm">{notes.importNotes.join('; ')}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="pt-8 flex justify-end">
+              <button 
+                disabled={!allAccepted} 
+                onClick={goToPlanning} 
+                className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                <ArrowRight className="w-5 h-5" />
+                Proceed to Planning
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
 export default Compliance;
-
-
