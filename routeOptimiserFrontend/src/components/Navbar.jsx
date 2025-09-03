@@ -42,6 +42,13 @@ const Navbar = () => {
               <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-cyan-500/0 to-blue-500/0 group-hover:from-cyan-500/10 group-hover:to-blue-500/10 transition-all duration-300"></div>
             </Link>
             <Link 
+              to="/plan" 
+              className="relative cc-text text-gray-200 hover:text-cyan-400 transition-all duration-300 font-medium px-4 py-2 rounded-lg hover:bg-slate-700/50 group"
+            >
+              <span className="relative z-10">Route Map</span>
+              <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-cyan-500/0 to-blue-500/0 group-hover:from-cyan-500/10 group-hover:to-blue-500/10 transition-all duration-300"></div>
+            </Link>
+            <Link 
               to="/about" 
               className="relative cc-text text-gray-200 hover:text-cyan-400 transition-all duration-300 font-medium px-4 py-2 rounded-lg hover:bg-slate-700/50 group"
             >

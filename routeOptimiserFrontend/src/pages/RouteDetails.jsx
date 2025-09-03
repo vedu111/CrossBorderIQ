@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -15,6 +15,8 @@ import {
   Receipt,
   TrendingUp
 } from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 
 const Section = ({ title, icon: Icon, children }) => (
   <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-6 rounded-2xl shadow-2xl">
@@ -35,13 +37,43 @@ const RouteDetails = () => {
 
   const route = state?.route || null;
   const homeState = state?.homeState || null;
+  const [routeStops, setRouteStops] = useState([]);
+  const googleApiKey = homeState?.formData?.googleApiKey || 
+    (typeof process !== "undefined" && process.env && process.env.REACT_APP_GOOGLE_API_KEY
+      ? process.env.REACT_APP_GOOGLE_API_KEY
+      : import.meta.env.VITE_GOOGLE_API_KEY);
 
   useEffect(() => {
     if (!route) {
       // No route passed via navigation state; return to home.
       navigate("/", { replace: true });
+    } else {
+      // Geocode the route path to get coordinates
+      const geocodePath = async () => {
+        const pathWithCoords = await Promise.all(route.path.map(async (stop) => {
+          try {
+            const response = await fetch(
+              `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(stop)}&key=${googleApiKey}`
+            );
+            const data = await response.json();
+            if (data.status === "OK" && data.results.length > 0) {
+              const location = data.results[0].geometry.location;
+              return { name: stop, lat: location.lat, lon: location.lng };
+            } else {
+              console.warn(`Geocode failed for ${stop}`);
+              return null;
+            }
+          } catch (error) {
+            console.error(`Error geocoding ${stop}:`, error);
+            return null;
+          }
+        }));
+        const validStops = pathWithCoords.filter((stop) => stop !== null);
+        setRouteStops(validStops);
+      };
+      geocodePath();
     }
-  }, [route, navigate]);
+  }, [route, navigate, googleApiKey]);
 
   if (!route) return null;
 
@@ -89,6 +121,41 @@ const RouteDetails = () => {
             Back to Routes
           </button>
         </div>
+
+                {/* Route Map Section */}
+        <Section title="Route Map" icon={MapPin}>
+          <div className="bg-slate-700/30 border border-slate-600/30 p-6 rounded-xl">
+            {routeStops.length > 0 ? (
+              <MapContainer
+                center={[routeStops[0].lat, routeStops[0].lon]}
+                zoom={4}
+                className="h-96 w-full rounded-lg overflow-hidden"
+                style={{ filter: "invert(90%) hue-rotate(180deg)" }}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
+                {routeStops.map((stop, index) => (
+                  <Marker key={index} position={[stop.lat, stop.lon]}>
+                    <Popup>{stop.name}</Popup>
+                  </Marker>
+                ))}
+                {routeStops.length > 1 && (
+                  <Polyline
+                    positions={routeStops.map((stop) => [stop.lat, stop.lon])}
+                    color="blue"
+                    weight={4}
+                    opacity={1}
+                    dashArray="5, 10"
+                  />
+                )}
+              </MapContainer>
+            ) : (
+              <p className="text-gray-400 text-center">Loading map data...</p>
+            )}
+          </div>
+        </Section>
 
         {/* Overview Section */}
         <Section title="Overview" icon={TrendingUp}>
@@ -138,6 +205,8 @@ const RouteDetails = () => {
             ))}
           </div>
         </Section>
+
+
 
         {/* Path Section */}
         <Section title="Route Path" icon={MapPin}>

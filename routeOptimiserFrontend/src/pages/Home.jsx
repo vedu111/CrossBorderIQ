@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import { MapPin, Search, Package, Truck, Plane, Ship, Eye, Route, Clock, DollarSign, Leaf, Zap } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+import Loader from "../components/Loader"; // Corrected import path
 
 const googleApiKey =
   typeof process !== "undefined" && process.env && process.env.REACT_APP_GOOGLE_API_KEY
@@ -39,12 +40,12 @@ const Home = () => {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [routeStops, setRouteStops] = useState([]);
   const [selectedRouteRank, setSelectedRouteRank] = useState(null);
+  const [loading, setLoading] = useState(false); // Add loading state
   const navigate = useNavigate();
   const location = useLocation();
   const restoredRef = useRef(false);
 
   // Restore state from sessionStorage on mount
-  // Also restore if navigation state provides a fresh snapshot
   useEffect(() => {
     const navState = location.state && (location.state.homeState || location.state.prefill)
       ? (location.state.homeState || { prefill: location.state.prefill })
@@ -65,7 +66,7 @@ const Home = () => {
         } else if (Array.isArray(parsed.routes) && parsed.routes.length > 0) {
           setHasSubmitted(true);
         }
-        // Accept prefill from compliance (weight/volume)
+        if (typeof parsed.loading === "boolean") setLoading(parsed.loading); // Restore loading state
         if (parsed.prefill) {
           setFormData(prev => ({ ...prev, weight: parsed.prefill.weight ?? prev.weight, volume: parsed.prefill.volume ?? prev.volume }));
         }
@@ -79,7 +80,7 @@ const Home = () => {
   // Persist essential state to sessionStorage
   useEffect(() => {
     try {
-      if (!restoredRef.current) return; // wait until initial restore happens
+      if (!restoredRef.current) return;
       const snapshot = {
         formData,
         initialAddress,
@@ -90,14 +91,15 @@ const Home = () => {
         hasSubmitted,
         routeStops,
         selectedRouteRank,
+        loading,
       };
       sessionStorage.setItem("homeState", JSON.stringify(snapshot));
     } catch (e) {
       console.warn("Failed to persist state:", e);
     }
-  }, [formData, initialAddress, finalAddress, initialCountry, finalCountry, routes, hasSubmitted, routeStops, selectedRouteRank]);
+  }, [formData, initialAddress, finalAddress, initialCountry, finalCountry, routes, hasSubmitted, routeStops, selectedRouteRank, loading]);
 
-  // Fallback: if /plan was opened without full state, merge from complianceState
+  // Fallback: Merge from complianceState
   useEffect(() => {
     if (!restoredRef.current) return;
     const needCoords = !formData.startLat || !formData.startLon || !formData.endLat || !formData.endLon;
@@ -108,14 +110,12 @@ const Home = () => {
       const saved = sessionStorage.getItem('complianceState');
       if (!saved) return;
       const c = JSON.parse(saved);
-      // Merge addresses and countries
       if (needAddrs) {
         if (c.startAddress) setInitialAddress(c.startAddress);
         if (c.endAddress) setFinalAddress(c.endAddress);
       }
       if (!initialCountry && c.sourceCountry) setInitialCountry(c.sourceCountry);
       if (!finalCountry && c.destinationCountry) setFinalCountry(c.destinationCountry);
-      // Merge coordinates
       if (needCoords) {
         setFormData(prev => ({
           ...prev,
@@ -125,7 +125,6 @@ const Home = () => {
           endLon: prev.endLon || c.endLon || prev.endLon,
         }));
       }
-      // Merge totals
       if (needTotals && Array.isArray(c.products)) {
         const w = c.products.reduce((s,p)=>s + (Number(p.weightKg)||0), 0);
         const v = c.products.reduce((s,p)=>s + (Number(p.volumeM3)||0), 0);
@@ -134,8 +133,7 @@ const Home = () => {
     } catch {}
   }, [restoredRef.current, formData.startLat, formData.startLon, formData.endLat, formData.endLon, formData.weight, formData.volume, initialAddress, finalAddress, initialCountry, finalCountry]);
 
-  // ### Address Geocoding Functions
-
+  // Address Geocoding Functions
   const handleInitialSearch = async () => {
     if (!initialAddress || !googleApiKey) {
       console.error("Initial address or Google API key is missing.");
@@ -198,8 +196,7 @@ const Home = () => {
     }
   };
 
-  // ### Form Submission Logic
-
+  // Form Submission Logic
   const weightsObj = formData.customWeights || { time: 0.25, cost: 0.25, emissions: 0.25, logisticsScore: 0.25 };
   const sumOfWeights = Object.values(weightsObj).reduce(
     (acc, val) => acc + val,
@@ -210,6 +207,10 @@ const Home = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setHasSubmitted(true);
+    setLoading(true); // Start loading
+
+    console.log("Current optimization type:", formData.optimizationType);
+    console.log("Full form data:", formData);
 
     const apiBase = (import.meta?.env?.VITE_API_BASE) || "http://localhost:3000";
 
@@ -226,6 +227,8 @@ const Home = () => {
       initialCountry: initialCountry,
       finalCountry: finalCountry,
     };
+
+    console.log("Data being sent to API:", dataToSend);
 
     try {
       const response = await fetch(`${apiBase}/api/find-routes`, {
@@ -248,11 +251,15 @@ const Home = () => {
     } catch (error) {
       console.error("Error submitting form:", error);
       alert(`Failed to fetch routes: ${error.message}. Ensure the backend is running on http://localhost:5001.`);
+    } finally {
+      // Ensure loader is visible for at least 500ms
+      setTimeout(() => {
+        setLoading(false); // Stop loading
+      }, 500); // Minimum 500ms display time
     }
   };
 
-  // ### Route Stops Calculation
-
+  // Route Stops Calculation
   useEffect(() => {
     if (routes.length > 0) {
       const firstRoute = routes[0];
@@ -290,7 +297,7 @@ const Home = () => {
           { name: finalAddress, lat: Number(formData.endLat), lon: Number(formData.endLon) },
         ];
         setRouteStops(stops);
-        console.log("Route Stops:", stops); // Verify data in console
+        console.log("Route Stops:", stops);
       });
     }
   }, [
@@ -303,14 +310,13 @@ const Home = () => {
     formData.endLon,
   ]);
 
-  // ### Map Bounds Adjustment Component
-
+  // Map Bounds Adjustment Component
   const MapUpdater = ({ routeStops }) => {
     const map = useMap();
     useEffect(() => {
       if (routeStops.length > 0) {
         const bounds = routeStops.map((stop) => [Number(stop.lat), Number(stop.lon)]);
-        console.log("Bounds:", bounds); // Debug coordinates
+        console.log("Bounds:", bounds);
         map.fitBounds(bounds);
       }
     }, [routeStops, map]);
@@ -326,10 +332,16 @@ const Home = () => {
     }
   };
 
-  // ### JSX Rendering
-
+  // JSX Rendering
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative">
+      {/* Full-page loader overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Loader />
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Form Section */}
@@ -440,6 +452,9 @@ const Home = () => {
                   </div>
                   <h3 className="text-lg font-medium text-white">Preferred Optimization</h3>
                 </div>
+                <div className="text-xs text-gray-400 mb-2">
+                  Current selection: {formData.optimizationType}
+                </div>
                 <div className="space-y-3">
                   {["time", "cost", "emissions", "logisticsScore", "customWeights"].map(
                     (option) => (
@@ -449,12 +464,13 @@ const Home = () => {
                           name="optimizationType"
                           value={option}
                           checked={formData.optimizationType === option}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            console.log("Radio button clicked:", e.target.value);
                             setFormData({
                               ...formData,
                               optimizationType: e.target.value,
-                            })
-                          }
+                            });
+                          }}
                           className="text-cyan-400 focus:ring-cyan-500"
                         />
                         <span className="ml-3 capitalize text-gray-300">
@@ -559,6 +575,7 @@ const Home = () => {
                 type="submit"
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 font-medium"
                 disabled={
+                  loading ||
                   (formData.optimizationType === "customWeights" && !isSumValid) ||
                   !formData.startLat ||
                   !formData.startLon ||
@@ -808,4 +825,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default Home;  
